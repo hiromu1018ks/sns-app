@@ -1,0 +1,26 @@
+{
+  "name": "posipost",
+  "private": true,
+  "version": "0.0.0",
+  "packageManager": "pnpm@9.0.0",
+  "scripts": {
+    "dev": "concurrently \"pnpm -C web dev\" \"pnpm -C api dev\"",
+    "build": "pnpm -C web build && pnpm -C api build",
+    "lint": "pnpm -C web lint && pnpm -C api lint",
+    "typecheck": "pnpm -C web typecheck && pnpm -C api typecheck",
+    "test": "pnpm -C web test && pnpm -C api test",
+    "gen:api-types": "openapi-typescript ./docs/Openapi.yaml -o ./packages/api-types/index.d.ts --export-type"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@typescript-eslint/eslint-plugin": "^8.42.0",
+    "@typescript-eslint/parser": "^8.42.0",
+    "concurrently": "^9.0.0",
+    "eslint": "^9.0.0",
+    "eslint-config-prettier": "^9.0.0",
+    "openapi-fetch": "^0.12.0",
+    "openapi-typescript": "^7.0.0",
+    "prettier": "^3.3.0",
+    "typescript": "^5.6.0"
+  }
+}

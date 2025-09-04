@@ -1,0 +1,7 @@
+{
+  "name": "@repo/api-types",
+  "version": "0.0.0",
+  "private":true,
+  "types": "index.d.ts",
+  "files":["index.d.ts"]
+}
