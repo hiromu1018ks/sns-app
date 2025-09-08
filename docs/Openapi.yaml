@@ -32,7 +32,7 @@ paths:
     get:
       operationId: listAuthProviders
       summary: 利用可能な認証プロバイダ一覧
-      description: クライアントがログインUX構成のために使用。例: ['google','apple']。
+      description: "クライアントがログインUX構成のために使用。例: ['google','apple']。"
       security: []
       tags: [Auth]
       responses:
@@ -660,7 +660,7 @@ components:
         threshold:
           type: number
           format: float
-          description: 運用しきい値（例: 0.70）
+          description: '運用しきい値（例: 0.70）'
         suggestions:
           type: array
           minItems: 1
@@ -767,7 +767,7 @@ components:
 
 x-operational-policies:
   scoring:
-    model: 'gemini-1.5-pro'  # 例: 実環境に応じて調整
+    model: 'gemini-1.5-pro' # 例: 実環境に応じて調整
     timeoutMs: 1000
     threshold: 0.70
     retry:
@@ -793,4 +793,3 @@ x-operational-policies:
   i18n:
     defaultLang: ja
     supported: [ja]
-

@@ -10,7 +10,7 @@ OpenAPIの `operationId` と、実装の関数/ファイルを1対1で対応付�
 - `logout` → src/handlers/auth/logout
 
 ## Health
-- `getHealthz` → src/handlers/healthz
+- `getHealthz` → api/src/server.ts
 
 ## Drafts
 - `createDraft` → src/handlers/drafts/create
@@ -35,4 +35,3 @@ OpenAPIの `operationId` と、実装の関数/ファイルを1対1で対応付�
 
 ## Notifications
 - `listNotifications` → src/handlers/notifications/list
-
