@@ -2,6 +2,7 @@
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import cookie from '@fastify/cookie';
+import { prisma } from './lib/prisma';
 
 // Fastifyインスタンスの作成（ロガー有効化）
 const app = Fastify({
@@ -34,7 +35,13 @@ await app.register(cookie, {});
 
 // ヘルスチェック用エンドポイント
 app.get('/healthz', async () => {
-  return { status: 'ok' };
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    return { status: 'ok', db: 'ok' };
+  } catch (e) {
+    app.log.error({ err: e }, 'DB health check failed');
+    return { status: 'ok', db: 'ng' };
+  }
 });
 
 // サーバーのポートとホスト設定

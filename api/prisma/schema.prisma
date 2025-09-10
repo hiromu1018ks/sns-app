@@ -1,0 +1,156 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+  // output = "../generated/prisma" // カスタム出力は非推奨。必要時のみ有効化
+}
+
+// === Auth.js models (keep as-is, cuid IDs) ===
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime? @map("email_verified")
+  image         String?
+  accounts      Account[]
+  sessions      Session[]
+
+  // 追加: AppUser への逆参照（1:1）
+  appUser       AppUser?  @relation(name: "AuthUserToAppUser")
+
+  @@map("users")
+}
+
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String  @map("user_id")
+  type              String
+  provider          String
+  providerAccountId String  @map("provider_account_id")
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique @map("session_token")
+  userId       String   @map("user_id")
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+// === Application models (UUID v7; generate in app code) ===
+model AppUser {
+  id         String   @id @db.Uuid
+  authUserId String   @unique @map("auth_user_id")
+
+  // relation名を明示（User側と対応）
+  authUser   User     @relation(name: "AuthUserToAppUser", fields: [authUserId], references: [id], onDelete: Cascade)
+
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  posts      Post[]
+  drafts     Draft[]
+  reactions  Reaction[]
+
+  // 追加: Notification の逆参照2本（relation名で対応）
+  notificationsReceived Notification[] @relation("NotificationReceiver")
+  notificationsActed    Notification[] @relation("NotificationActor")
+
+  @@map("app_users")
+}
+
+
+model Draft {
+  id        String   @id @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  user      AppUser  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  text      String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("drafts")
+}
+
+model Post {
+  id              String   @id @db.Uuid
+  userId          String   @map("user_id") @db.Uuid
+  user            AppUser  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  text            String
+  score           Decimal  @db.Decimal(4, 3)
+  status          String
+  createdAt       DateTime @default(now()) @map("created_at")
+  deletedAt       DateTime? @map("deleted_at")
+  restoreDeadline DateTime? @map("restore_deadline")
+  reactions       Reaction[]
+  notifications   Notification[]
+  @@index([createdAt(sort: Desc)])
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("posts")
+}
+
+model Reaction {
+  id        String   @id @db.Uuid
+  postId    String   @map("post_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  type      String
+  createdAt DateTime @default(now()) @map("created_at")
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      AppUser  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([postId, userId]) // 1投稿につき同時に1種類
+  @@index([postId])
+  @@index([userId])
+  @@map("reactions")
+}
+
+model Notification {
+  id           String   @id @db.Uuid
+  userId       String   @map("user_id") @db.Uuid // 受信者
+  actorUserId  String   @map("actor_user_id") @db.Uuid
+  postId       String   @map("post_id") @db.Uuid
+  reactionType String   @map("reaction_type")
+  createdAt    DateTime @default(now()) @map("created_at")
+  readAt       DateTime? @map("read_at")
+  user         AppUser  @relation("NotificationReceiver", fields: [userId], references: [id], onDelete: Cascade)
+  actorUser    AppUser  @relation("NotificationActor", fields: [actorUserId], references: [id], onDelete: Cascade)
+  post         Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("notifications")
+}
+
+model DeletionQueue {
+  id           String   @id @db.Uuid
+  resourceType String   @map("resource_type")
+  resourceId   String   @map("resource_id") @db.Uuid
+  executeAfter DateTime @map("execute_after")
+  @@index([executeAfter])
+  @@map("deletion_queue")
+}
