@@ -114,9 +114,38 @@ MVPは「session: 'jwt'」前提（DBセッション不要）ですが、将来�
 
 ---
 
+## 運用方針（Prisma）
+- ファイル配置
+  - スキーマ: `api/prisma/schema.prisma`
+  - マイグレーション: `api/prisma/migrations/`
+- 実行コマンド（api パッケージで実行）
+  - 検証: `pnpm --filter api exec prisma validate --schema ./prisma/schema.prisma`
+  - 生成: `pnpm --filter api exec prisma generate --schema ./prisma/schema.prisma`
+  - 開発用 migrate: `pnpm --filter api exec prisma migrate dev --schema ./prisma/schema.prisma --name <name>`
+  - 本番/Neon 反映: `pnpm --filter api exec prisma migrate deploy --schema ./prisma/schema.prisma`
+- ENVの解決
+  - Prismaは「実行カレントの .env」を読むため、api から実行する場合は api 直下で `.env` が解決できるようにしてください（シンボリックリンク or コピー）。
+- バージョン整合
+  - `prisma`（CLI）と `@prisma/client` のメジャー/マイナーは一致させて運用します。
+
+## ER 概要（文章）
+- User（Auth.js既定；cuid文字列）と AppUser（API公開ID；UUID v7）は 1:1。
+- AppUser は Draft（1:N）、Post（1:N）、Reaction（1:N）、Notification（受信/起点 1:N）に紐づく中心エンティティ。
+- Post は公開後は編集不可（status='approved'）。削除はソフトデリート＋30日以内に復元可能（restore_deadline）。
+- Reaction は「同一ユーザーが同一投稿に同時に1種類のみ」を UNIQUE(post_id, user_id) で担保。別種付与は置換、同種の再付与は幂等。
+- Notification は「受信者 userId」「行為者 actorUserId」「対象 postId」を保持。既読は read_at。
+- DeletionQueue はバッチ用の実行待ちキュー（30日後のハード削除など）。
+
+## 典型クエリとインデックス設計の意図
+- Posts タイムライン: `ORDER BY created_at DESC`（グローバル/ユーザー別の双方に対応するため `(created_at)`, `(user_id, created_at)` を索引）
+- Drafts リスト: ユーザー別の新着順 `(user_id, created_at DESC)`
+- Reactions: 投稿・ユーザーでの参照頻度が高いため `(post_id)`, `(user_id)` を索引
+- Notifications: 受信者別の新着順 `(user_id, created_at DESC)`
+- DeletionQueue: 実行時刻順 `(execute_after)`
+
 ## Prisma スキーマ例（PostgreSQL想定）
 
-`prisma/schema.prisma` に置く想定の例です。Auth.jsモデルは公式推奨（cuid()）に準拠、アプリ側はUUID v7（アプリ生成）を採用します。
+`api/prisma/schema.prisma` に置く想定の例です。Auth.jsモデルは公式推奨（cuid()）に準拠、アプリ側はUUID v7（アプリ生成）を採用します。User↔AppUserは1:1で、双方向の関連を明示します。
 
 ```prisma
 datasource db {
@@ -137,6 +166,7 @@ model User {
   image         String?
   accounts      Account[]
   sessions      Session[]
+  appUser       AppUser?  @relation(name: "AuthUserToAppUser")
   @@map("users")
 }
 
@@ -177,14 +207,16 @@ model VerificationToken {
 
 // === Application models (UUID v7; generate in app code) ===
 model AppUser {
-  id         String  @id @db.Uuid // v7をアプリで生成してセット
-  authUserId String  @unique @map("auth_user_id")
-  authUser   User    @relation(fields: [authUserId], references: [id], onDelete: Cascade)
+  id         String   @id @db.Uuid // v7をアプリで生成してセット
+  authUserId String   @unique @map("auth_user_id")
+  authUser   User     @relation(name: "AuthUserToAppUser", fields: [authUserId], references: [id], onDelete: Cascade)
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
   posts      Post[]
   drafts     Draft[]
   reactions  Reaction[]
+  notificationsReceived Notification[] @relation("NotificationReceiver")
+  notificationsActed    Notification[] @relation("NotificationActor")
   @@map("app_users")
 }
 
