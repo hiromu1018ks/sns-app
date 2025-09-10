@@ -41,6 +41,26 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/v1/auth/bootstrap": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * セッションブートストラップ
+         * @description IdPのIDトークンを検証し、Refresh Cookieを発行して初回アクセストークンを返却。
+         */
+        post: operations["bootstrapAuth"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/auth/refresh": {
         parameters: {
             query?: never;
@@ -257,6 +277,12 @@ export type components = {
             /** @description JWTアクセストークン（15分） */
             token?: string;
         };
+        AuthBootstrapRequest: {
+            /** @enum {string} */
+            provider: "google" | "apple";
+            /** @description OIDC IdPのIDトークン */
+            idToken: string;
+        };
         User: {
             /** Format: uuid */
             id?: string;
@@ -449,6 +475,48 @@ export interface operations {
                     "application/json": {
                         providers?: ("google" | "apple")[];
                     };
+                };
+            };
+        };
+    };
+    bootstrapAuth: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AuthBootstrapRequest"];
+            };
+        };
+        responses: {
+            /** @description ブートストラップ成功（Refresh Cookie設定） */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthResponse"];
+                };
+            };
+            /** @description 入力不正/IDトークン不正 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description 認証失敗 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };

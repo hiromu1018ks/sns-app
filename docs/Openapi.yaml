@@ -49,6 +49,48 @@ paths:
                       type: string
                       enum: [google, apple]
 
+  /v1/auth/bootstrap:
+    post:
+      operationId: bootstrapAuth
+      summary: セッションブートストラップ
+      description: IdPのIDトークンを検証し、Refresh Cookieを発行して初回アクセストークンを返却。
+      tags: [Auth]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthBootstrapRequest'
+            examples:
+              google:
+                value:
+                  provider: google
+                  idToken: 'eyJhbGciOiJSUzI1NiIs...'
+              apple:
+                value:
+                  provider: apple
+                  idToken: 'eyJhbGciOiJSUzI1NiIs...'
+      responses:
+        '200':
+          description: ブートストラップ成功（Refresh Cookie設定）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: 入力不正/IDトークン不正
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: 認証失敗
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /v1/auth/refresh:
     post:
       operationId: refreshAccessToken
@@ -551,6 +593,16 @@ components:
         token:
           type: string
           description: JWTアクセストークン（15分）
+    AuthBootstrapRequest:
+      type: object
+      required: [provider, idToken]
+      properties:
+        provider:
+          type: string
+          enum: [google, apple]
+        idToken:
+          type: string
+          description: OIDC IdPのIDトークン
     User:
       type: object
       properties:
