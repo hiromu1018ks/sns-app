@@ -134,4 +134,4 @@
 - 認証/CORS/Cookie: docs/Security/AuthConfig.md
 - 環境変数: docs/ENV_VARS.md / .env.example
 - 開発ガイド: docs/README.dev.md / docs/API/RouteMap.md / docs/API/ErrorCodes.md
-
+ - Prisma運用注記: スキーマは `api/prisma/schema.prisma` に配置し、`pnpm --filter api exec prisma <command> --schema ./prisma/schema.prisma` で実行

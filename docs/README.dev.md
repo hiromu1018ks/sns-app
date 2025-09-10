@@ -9,8 +9,8 @@
 
 ## セットアップ（最小）
 1. `.env.example` をコピーして `.env` を作成し、値を埋める。
-2. DBを用意し、`docs/Data/Schema.md` に沿って初期スキーマを作成。
-3. CORSの許可オリジンとCookieドメインがローカル環境に合っているか確認。
+2. DBを用意し、`docs/Data/Schema.md` に沿って初期スキーマを作成（スキーマは `api/prisma/schema.prisma` に配置し、Prisma コマンドは api で実行）。
+3. CORSの許可オリジンとCookieドメインがローカル環境に合っているか確認（ENV: `CORS_ALLOWED_ORIGIN`。カンマ区切りで複数可）。
 4. サーバを起動し、`/healthz` で稼働確認。
 
 ## 開発の指針
@@ -30,4 +30,3 @@
 
 ## クライアント生成（任意）
 OpenAPIクライアント生成を使う場合は、採用言語に合わせて `docs/Openapi.yaml` から生成してください（例: openapi-generator）。
-

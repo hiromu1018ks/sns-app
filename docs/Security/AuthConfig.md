@@ -9,7 +9,7 @@
 ## Cookie/CORS
 - Cookie名: `refresh_token`（変更可）。
 - Cookie属性: `HttpOnly; Secure; SameSite=Lax; Domain=<COOKIE_DOMAIN>`。
-- CORS: `CORS_ALLOWED_ORIGINS` に `http://localhost:3000`, `https://stg.app.posipost.example.com`, `https://app.posipost.example.com` を設定し、`credentials: true` を許可。
+- CORS: `CORS_ALLOWED_ORIGIN` に `http://localhost:3000`, `https://stg.app.posipost.example.com`, `https://app.posipost.example.com` を設定し、`credentials: true` を許可（値はカンマ区切りで複数指定可）。
 
 ## CSRF/XSS対策
 - CSRF: リフレッシュAPIのみCSRF対策（ダブルサブミットトークンまたはOriginチェック）。
@@ -27,4 +27,3 @@
 
 ## 環境変数
 `docs/ENV_VARS.md` を参照。特にGoogle/Appleのクレデンシャル、Cookieドメイン、CORSオリジンに注意。
-

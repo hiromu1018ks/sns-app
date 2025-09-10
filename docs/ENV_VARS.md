@@ -27,7 +27,7 @@
 - `AUTH_APPLE_ID` / `AUTH_APPLE_SECRET`（同上、SecretはJWT生成などで別途組み立てる場合あり）
 
 ## CORS / Web
-- `CORS_ALLOWED_ORIGINS`（カンマ区切り。例: `http://localhost:3000,https://stg.app.posipost.example.com,https://app.posipost.example.com`）
+- `CORS_ALLOWED_ORIGIN`（カンマ区切り可。例: `http://localhost:3000,https://stg.app.posipost.example.com,https://app.posipost.example.com`）
 - `CORS_ALLOW_CREDENTIALS`（`true`）
 
 ## Scoring (Gemini)
