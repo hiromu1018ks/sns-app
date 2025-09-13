@@ -3,6 +3,7 @@ import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import cookie from '@fastify/cookie';
 import { prisma } from './lib/prisma';
+import bootstrapAuth from './handlers/auth/bootstrap';
 
 // Fastifyインスタンスの作成（ロガー有効化）
 const app = Fastify({
@@ -43,6 +44,8 @@ app.get('/healthz', async () => {
     return { status: 'ok', db: 'ng' };
   }
 });
+
+app.post('/v1/auth/bootstrap', bootstrapAuth);
 
 // サーバーのポートとホスト設定
 const port = Number(process.env.PORT ?? 8080);
