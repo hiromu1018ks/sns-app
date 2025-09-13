@@ -6,15 +6,24 @@ import { prisma } from '../../lib/prisma';
 import { FastifyReply, FastifyRequest } from 'fastify';
 import { createRemoteJWKSet, jwtVerify } from 'jose';
 import { z } from 'zod';
+import crypto from 'node:crypto';
+import { issue } from '../../lib/refreshStore';
+import { setRefreshCookie } from '../../lib/cookies';
+import { signAccessToken } from '../../lib/jwt';
 
 /**
- * 外部認証プロバイダで検証済みのユーザープロファイル情報。
+ * 外部認証プロバイダで検証済みのユーザープロファイル情報を表します。
  */
 type VerifiedProfile = {
+  /** プロバイダアカウントID */
   providerAccountId: string;
+  /** メールアドレス */
   email?: string;
+  /** メールアドレスが検証済みかどうか */
   emailVerified: boolean;
+  /** ユーザー名 */
   name?: string;
+  /** プロフィール画像URL */
   image?: string;
 };
 
@@ -30,8 +39,9 @@ type Body = z.infer<typeof BodySchema>;
 
 /**
  * GoogleのIDトークンを検証し、ユーザープロファイル情報を抽出します。
+ *
  * @param idToken GoogleのIDトークン文字列
- * @returns 検証済みプロファイル情報
+ * @return 検証済みプロファイル情報
  * @throws audienceやissuerが不正な場合はエラー
  */
 async function verifyGoogleIdToken(idToken: string): Promise<VerifiedProfile> {
@@ -60,8 +70,9 @@ async function verifyGoogleIdToken(idToken: string): Promise<VerifiedProfile> {
 
 /**
  * AppleのIDトークンを検証し、ユーザープロファイル情報を抽出します。
+ *
  * @param idToken AppleのIDトークン文字列
- * @returns 検証済みプロファイル情報
+ * @return 検証済みプロファイル情報
  * @throws audienceやissuerが不正な場合はエラー
  */
 async function verifyAppleIdToken(idToken: string): Promise<VerifiedProfile> {
@@ -90,8 +101,10 @@ async function verifyAppleIdToken(idToken: string): Promise<VerifiedProfile> {
 /**
  * Fastify用の認証ブートストラップエンドポイントハンドラ。
  * リクエスト検証、IDトークン検証、ユーザー・アカウントupsert、結果返却を行います。
+ *
  * @param request FastifyRequestオブジェクト
  * @param reply FastifyReplyオブジェクト
+ * @return レスポンス
  */
 export default async function bootstrapAuth(request: FastifyRequest, reply: FastifyReply) {
   // リクエストボディのバリデーション
@@ -112,14 +125,30 @@ export default async function bootstrapAuth(request: FastifyRequest, reply: Fast
     // ユーザー・アカウントをDBにupsert
     const user = await upsertAuthUserAndAccount(provider, verified);
 
-    // 成功レスポンスを返却
+    // AppUserを取得/作成
+    const appUser = await getOrCreateAppUser(user.id);
+
+    // Refresh発行 → Cookieに設定（maxAgeは残存秒数）
+    const refresh = issue(appUser.id);
+    const nowSec = Math.floor(Date.now() / 1000);
+    const maxAgeSec = Math.max(0, refresh.expiresAt - nowSec);
+    setRefreshCookie(reply, refresh.token, maxAgeSec);
+
+    // アクセスJWT発行（sub=AppUser.id）
+    const accessToken = await signAccessToken(appUser.id);
+
+    // 表示名（name→emailローカル部→空文字を回避）
+    const displayName = user.name ?? (user.email ? user.email.split('@')[0] : '');
+
+    // OpenAPI: AuthResponseで返却
     return reply.code(200).send({
-      verified: true,
-      provider,
-      providerAccountId: verified.providerAccountId,
-      authUserId: user.id,
-      email: verified.email ?? null,
-      emailVerified: verified.emailVerified,
+      user: {
+        id: appUser.id,
+        ...(user.email ? { email: user.email } : {}),
+        ...(displayName ? { displayName } : {}),
+        createdAt: appUser.createdAt.toISOString(),
+      },
+      token: accessToken,
     });
   } catch (e) {
     // 検証失敗時のエラーハンドリング
@@ -130,11 +159,12 @@ export default async function bootstrapAuth(request: FastifyRequest, reply: Fast
 
 /**
  * providerとprofile情報に基づき、ユーザー・アカウントをDBにupsertします。
- * 既存アカウントがあれば紐づくユーザーを返却。
- * なければユーザー新規作成（必要時）とアカウント新規作成。
+ * 既存アカウントがあれば紐づくユーザーを返却します。
+ * なければユーザー新規作成（必要時）とアカウント新規作成を行います。
+ *
  * @param provider 'google' または 'apple'
  * @param p 検証済みプロファイル情報
- * @returns Userエンティティ
+ * @return Userエンティティ
  */
 async function upsertAuthUserAndAccount(provider: 'google' | 'apple', p: VerifiedProfile) {
   // provider/providerAccountIdで既存アカウントを検索
@@ -170,4 +200,22 @@ async function upsertAuthUserAndAccount(provider: 'google' | 'apple', p: Verifie
   });
 
   return user;
+}
+
+/**
+ * 指定したauthUserIdに対応するAppUserを取得または新規作成します。
+ *
+ * @param authUserId 認証ユーザーID
+ * @return AppUserエンティティ
+ */
+async function getOrCreateAppUser(authUserId: string) {
+  const existing = await prisma.appUser.findUnique({ where: { authUserId } });
+  if (existing) return existing;
+
+  // TODO: 将来的にUUID v7化
+  const id = crypto.randomUUID();
+
+  return prisma.appUser.create({
+    data: { id, authUserId },
+  });
 }

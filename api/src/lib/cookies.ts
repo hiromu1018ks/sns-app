@@ -40,7 +40,7 @@ function baseCookieOptions(maxAgeSec?: number): BaseOptions {
 }
 
 // リフレッシュトークンをCookieにセットする
-export function setRefreshCoolie(reply: FastifyReply, token: string, maxAgeSec?: number) {
+export function setRefreshCookie(reply: FastifyReply, token: string, maxAgeSec?: number) {
   reply.setCookie(REFRESH_COOKIE_NAME, token, baseCookieOptions(maxAgeSec));
 }
 
