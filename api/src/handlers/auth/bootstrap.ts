@@ -6,7 +6,7 @@ import { prisma } from '../../lib/prisma';
 import { FastifyReply, FastifyRequest } from 'fastify';
 import { createRemoteJWKSet, jwtVerify } from 'jose';
 import { z } from 'zod';
-import crypto from 'node:crypto';
+import { v7 as uuidv7 } from 'uuid';
 import { issue } from '../../lib/refreshStore';
 import { setRefreshCookie } from '../../lib/cookies';
 import { signAccessToken } from '../../lib/jwt';
@@ -212,8 +212,7 @@ async function getOrCreateAppUser(authUserId: string) {
   const existing = await prisma.appUser.findUnique({ where: { authUserId } });
   if (existing) return existing;
 
-  // TODO: 将来的にUUID v7化
-  const id = crypto.randomUUID();
+  const id = uuidv7();
 
   return prisma.appUser.create({
     data: { id, authUserId },
